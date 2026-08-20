@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风控系统 - 客户黑名单管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif; background: #F5F7FA; color: #333; font-size: 14px; }
+  .layout { display: flex; min-height: 100vh; }
+
+  /* 侧边栏 */
+  .sidebar { width: 200px; background: #001529; color: #fff; flex-shrink: 0; }
+  .sidebar .logo { height: 56px; line-height: 56px; text-align: center; font-size: 16px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .menu-item { padding: 12px 20px; color: rgba(255,255,255,.7); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .menu-item:hover { color: #fff; }
+  .menu-item.active { background: #1890FF; color: #fff; }
+  .menu-item .arrow { font-size: 12px; }
+  .sub-menu { background: rgba(0,0,0,.2); }
+  .sub-menu .menu-item { padding-left: 48px; font-size: 13px; }
+  .sub-menu .menu-item.active { background: #1890FF; color: #fff; }
+
+  /* 主区域 */
+  .main { flex: 1; }
+  .header { height: 56px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .header .title { font-size: 16px; font-weight: bold; }
+  .header .user { color: #666; }
+
+  .content { padding: 20px; }
+  .card { background: #fff; border-radius: 4px; padding: 20px; margin-bottom: 16px; }
+
+  /* 查询区 */
+  .query-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .query-row input, .query-row select { height: 32px; padding: 0 10px; border: 1px solid #D9D9D9; border-radius: 4px; font-size: 14px; min-width: 180px; }
+  .query-row input:focus, .query-row select:focus { border-color: #1890FF; outline: none; }
+  .query-row label { color: #666; }
+
+  /* 按钮 */
+  .btn { height: 32px; padding: 0 16px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 14px; }
+  .btn-primary { background: #1890FF; color: #fff; border-color: #1890FF; }
+  .btn-default { background: #fff; color: #333; border-color: #D9D9D9; }
+  .btn-danger { background: #FF4D4F; color: #fff; border-color: #FF4D4F; }
+  .btn-danger-outline { background: #fff; color: #FF4D4F; border-color: #FF4D4F; }
+
+  .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid #F0F0F0; }
+  th { background: #FAFAFA; color: #666; font-weight: 500; }
+  tr:hover td { background: #F5F8FF; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 2px; font-size: 12px; }
+  .tag-danger { background: #FFF1F0; color: #FF4D4F; border: 1px solid #FFA39E; }
+  .tag-warn { background: #FFFBE6; color: #FAAD14; border: 1px solid #FFE58F; }
+
+  .link { color: #1890FF; cursor: pointer; margin-right: 8px; }
+  .link.danger { color: #FF4D4F; }
+
+  /* 分页 */
+  .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; color: #666; }
+  .pagination .page { width: 28px; height: 28px; line-height: 28px; text-align: center; border: 1px solid #D9D9D9; border-radius: 4px; cursor: pointer; }
+  .pagination .page.active { background: #1890FF; color: #fff; border-color: #1890FF; }
+
+  /* 弹窗 */
+  .mask { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.45); z-index: 999; }
+  .mask.show { display: block; }
+  .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 4px; width: 520px; z-index: 1000; box-shadow: 0 4px 16px rgba(0,0,0,.2); display: none; }
+  .modal.show { display: block; }
+  .modal .modal-header { padding: 16px 20px; border-bottom: 1px solid #F0F0F0; font-size: 16px; font-weight: bold; }
+  .modal .modal-body { padding: 20px; }
+  .modal .form-item { margin-bottom: 16px; }
+  .modal .form-item label { display: block; color: #666; margin-bottom: 6px; }
+  .modal .form-item input, .modal .form-item select, .modal .form-item textarea { width: 100%; height: 32px; padding: 0 10px; border: 1px solid #D9D9D9; border-radius: 4px; }
+  .modal .form-item textarea { height: 80px; padding: 8px 10px; resize: none; }
+  .modal .modal-footer { padding: 12px 20px; border-top: 1px solid #F0F0F0; text-align: right; }
+  .modal .modal-footer .btn { margin-left: 8px; }
+
+  /* 拦截提示 */
+  .block-tip { background: #FFF1F0; border: 1px solid #FFA39E; color: #FF4D4F; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; display: none; }
+  .block-tip.show { display: block; }
+  .block-tip b { font-size: 15px; }
+
+  .warning-banner { background: #FFF7E6; border: 1px solid #FFD591; color: #D46B08; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- 侧边栏：风控系统标准导航菜单 -->
+  <aside class="sidebar">
+    <div class="logo">风控系统</div>
+    <div class="menu-item active">客户管理 <span class="arrow">▾</span></div>
+    <div class="sub-menu">
+      <div class="menu-item active">客户黑名单</div>
+    </div>
+    <div class="menu-item">风控规则配置 <span class="arrow">▾</span></div>
+    <div class="menu-item">风控预警管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">风控规则管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">服务商管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">品牌方管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">名单管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">数据管理 <span class="arrow">▾</span></div>
+    <div class="menu-item">操作记录 <span class="arrow">▾</span></div>
+    <div class="menu-item">系统管理 <span class="arrow">▾</span></div>
+  </aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="header">
+      <div class="title">客户管理 / 客户黑名单</div>
+      <div class="user">风控管理员 <a class="link">退出</a></div>
+    </header>
+
+    <div class="content">
+      <div class="card">
+        <!-- 查询区 -->
+        <div class="query-row">
+          <label>纳税人识别号</label><input type="text" placeholder="请输入纳税人识别号">
+          <label>客户名称</label><input type="text" placeholder="请输入客户名称">
+          <label>状态</label>
+          <select><option>全部</option><option>启用</option><option>禁用</option></select>
+          <button class="btn btn-primary">查询</button>
+          <button class="btn btn-default">重置</button>
+          <button class="btn btn-default">展开</button>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="openModal()">新增黑名单</button>
+          <button class="btn btn-default">导出</button>
+        </div>
+
+        <!-- 表格 -->
+        <table id="blackTable">
+          <thead>
+            <tr>
+              <th>纳税人识别号</th>
+              <th>客户名称</th>
+              <th>拉黑原因</th>
+              <th>拉黑时间</th>
+              <th>操作人</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>91110108MA01B1XN2</td>
+              <td>某某科技有限公司</td>
+              <td>涉及异常交易，风险较高</td>
+              <td>2026-07-01 10:23:45</td>
+              <td>张风控</td>
+              <td><span class="tag tag-danger">禁用</span></td>
+              <td><a class="link" onclick="openDetail()">查看</a><a class="link" onclick="enableOne()">启用</a></td>
+            </tr>
+            <tr>
+              <td>91310115MA1H7G1X2</td>
+              <td>上海某某贸易有限公司</td>
+              <td>逾期结算，多次催收无效</td>
+              <td>2026-06-12 14:01:20</td>
+              <td>李风控</td>
+              <td><span class="tag tag-danger">禁用</span></td>
+              <td><a class="link" onclick="openDetail()">查看</a><a class="link" onclick="enableOne()">启用</a></td>
+            </tr>
+            <tr>
+              <td>91440300MA5G4X1C6</td>
+              <td>深圳某某网络公司</td>
+              <td>涉嫌虚假签约</td>
+              <td>2026-05-30 09:15:33</td>
+              <td>张风控</td>
+              <td><span class="tag tag-danger">禁用</span></td>
+              <td><a class="link" onclick="openDetail()">查看</a><a class="link" onclick="enableOne()">启用</a></td>
+            </tr>
+            <tr>
+              <td>91110107MA01C5Y87</td>
+              <td>北京某某咨询有限公司</td>
+              <td>历史不良记录解除</td>
+              <td>2026-05-01 11:30:00</td>
+              <td>李风控</td>
+              <td><span class="tag" style="background:#F6FFED;color:#52C41A;border:1px solid #B7EB8F;">启用</span></td>
+              <td><a class="link" onclick="openDetail()">查看</a><a class="link danger" onclick="disableOne()">禁用</a></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 分页 -->
+        <div class="pagination">
+          <span>共 12 条</span>
+          <div class="page">‹</div>
+          <div class="page active">1</div>
+          <div class="page">2</div>
+          <div class="page">›</div>
+          <select style="height:28px;border:1px solid #D9D9D9;border-radius:4px;"><option>10 条/页</option><option>20 条/页</option><option>50 条/页</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗遮罩 -->
+<div class="mask" id="mask" onclick="closeModal()"></div>
+
+<!-- 新增黑名单弹窗 -->
+<div class="modal" id="addModal">
+  <div class="modal-header">新增黑名单</div>
+  <div class="modal-body">
+    <div class="form-item">
+      <label>纳税人识别号 <span style="color:#FF4D4F">*</span></label>
+      <input type="text" placeholder="请输入纳税人识别号" id="taxNo">
+    </div>
+    <div class="form-item">
+      <label>客户名称 <span style="color:#FF4D4F">*</span></label>
+      <input type="text" placeholder="请输入客户名称" id="custName">
+    </div>
+    <div class="form-item">
+      <label>拉黑原因 <span style="color:#FF4D4F">*</span></label>
+      <textarea placeholder="请填写拉黑原因"></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-default" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="closeModal()">确定</button>
+  </div>
+</div>
+
+<!-- 查看详情弹窗 -->
+<div class="modal" id="detailModal">
+  <div class="modal-header">黑名单详情</div>
+  <div class="modal-body">
+    <table>
+      <tr><th style="width:100px;background:#FAFAFA;">纳税人识别号</th><td>91110108MA01B1XN2</td></tr>
+      <tr><th style="background:#FAFAFA;">客户名称</th><td>某某科技有限公司</td></tr>
+      <tr><th style="background:#FAFAFA;">拉黑原因</th><td>涉及异常交易，风险较高</td></tr>
+      <tr><th style="background:#FAFAFA;">拉黑时间</th><td>2026-07-01 10:23:45</td></tr>
+      <tr><th style="background:#FAFAFA;">操作人</th><td>张风控</td></tr>
+      <tr><th style="background:#FAFAFA;">状态</th><td><span class="tag tag-danger">禁用</span></td></tr>
+    </table>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-default" onclick="closeModal()">关闭</button>
+  </div>
+</div>
+
+<script>
+  function openModal() { document.getElementById('mask').classList.add('show'); document.getElementById('addModal').classList.add('show'); }
+  function closeModal() { document.getElementById('mask').classList.remove('show'); document.getElementById('addModal').classList.remove('show'); document.getElementById('detailModal').classList.remove('show'); }
+  function openDetail() { document.getElementById('mask').classList.add('show'); document.getElementById('detailModal').classList.add('show'); }
+  function enableOne() { alert('已确认启用该客户，启用后恢复签约和结算能力。'); }
+  function disableOne() { alert('已确认禁用该客户，禁用后禁止签约和结算。'); }
+</script>
+</body>
+</html>
