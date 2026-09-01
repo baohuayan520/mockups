@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务商系统 - 商户余额退款</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f2f5;
+            color: #333333;
+            font-size: 14px;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 200px;
+            background-color: #001529;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h2 {
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .menu-group {
+            padding: 8px 0;
+        }
+
+        .menu-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .menu-item:hover {
+            background-color: #1890ff;
+        }
+
+        .menu-item.active {
+            background-color: #1890ff;
+            color: #fff;
+        }
+
+        .menu-item .arrow {
+            font-size: 12px;
+        }
+
+        .submenu {
+            background-color: #000c17;
+        }
+
+        .submenu-item {
+            padding: 10px 24px 10px 48px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submenu-item:hover {
+            background-color: #1890ff;
+        }
+
+        .submenu-item.active {
+            background-color: #1890ff;
+            color: #fff;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 顶部标签栏 */
+        .tab-bar {
+            height: 40px;
+            background-color: #fff;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        .tab-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-item:hover {
+            color: #1890ff;
+        }
+
+        .tab-item.active {
+            color: #1890ff;
+            border-bottom-color: #1890ff;
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            color: #999;
+            cursor: pointer;
+        }
+
+        /* 内容区域 */
+        .content-wrapper {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        /* 查询条件区域 */
+        .query-panel {
+            background-color: #fff;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #e8e8e8;
+        }
+
+        .query-panel-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            color: #1890ff;
+        }
+
+        .query-panel-header::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background-color: #1890ff;
+            margin-right: 8px;
+        }
+
+        .query-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .form-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-item label {
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .form-item input,
+        .form-item select {
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .form-item input:focus,
+        .form-item select:focus {
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+        }
+
+        .form-item input {
+            width: 160px;
+        }
+
+        .form-item select {
+            width: 160px;
+            cursor: pointer;
+        }
+
+        .btn {
+            height: 32px;
+            padding: 0 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background-color: #1890ff;
+            color: #fff;
+            border-color: #1890ff;
+        }
+
+        .btn-primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+
+        .btn-primary:disabled {
+            background-color: #d9d9d9;
+            border-color: #d9d9d9;
+            cursor: not-allowed;
+        }
+
+        .btn-default {
+            background-color: #fff;
+            color: #333;
+            border-color: #d9d9d9;
+        }
+
+        .btn-default:hover {
+            color: #1890ff;
+            border-color: #1890ff;
+        }
+
+        /* 操作按钮区域 */
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        /* 数据表格 */
+        .table-wrapper {
+            background-color: #fff;
+            border-radius: 4px;
+            border: 1px solid #e8e8e8;
+            overflow: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e8e8e8;
+            min-height: 40px;
+        }
+
+        .data-table th {
+            background-color: #fafafa;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .data-table tr:hover {
+            background-color: #e6f7ff;
+        }
+
+        .data-table td {
+            vertical-align: middle;
+        }
+
+        .checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* 状态标签 */
+        .status-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .status-success {
+            background-color: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+
+        .status-pending {
+            background-color: #fff7e6;
+            color: #faad14;
+            border: 1px solid #ffd591;
+        }
+
+        /* 操作按钮 */
+        .row-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-link {
+            color: #1890ff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .action-link:hover {
+            color: #40a9ff;
+        }
+
+        .action-link.export {
+            color: #52c41a;
+        }
+
+        .action-link.export:hover {
+            color: #73d13d;
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 16px;
+            gap: 8px;
+        }
+
+        .pagination-info {
+            color: #666;
+            margin-right: 16px;
+        }
+
+        .page-btn {
+            min-width: 32px;
+            height: 32px;
+            padding: 0 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #fff;
+            transition: all 0.3s;
+        }
+
+        .page-btn:hover {
+            color: #1890ff;
+            border-color: #1890ff;
+        }
+
+        .page-btn.active {
+            background-color: #1890ff;
+            color: #fff;
+            border-color: #1890ff;
+        }
+
+        .page-btn:disabled {
+            cursor: not-allowed;
+            color: #d9d9d9;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: #fff;
+            border-radius: 4px;
+            width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .modal-close {
+            cursor: pointer;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 4px;
+            color: #fff;
+            z-index: 2000;
+            animation: fadeInOut 3s;
+        }
+
+        .toast-success {
+            background-color: #52c41a;
+        }
+
+        .toast-error {
+            background-color: #ff4d4f;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        /* 付款申请单预览样式 */
+        .payment-form-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .payment-form-container {
+            background-color: #fff;
+            width: 800px;
+            padding: 40px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .payment-form {
+            border: 2px solid #000;
+            padding: 30px;
+        }
+
+        .form-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .form-subtitle {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 24px;
+        }
+
+        .form-row {
+            display: flex;
+            margin-bottom: 16px;
+        }
+
+        .form-field {
+            flex: 1;
+        }
+
+        .form-label {
+            display: inline-block;
+            min-width: 120px;
+        }
+
+        .form-value {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            min-width: 200px;
+            padding: 4px 8px;
+        }
+
+        .form-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            border: 1px solid #000;
+        }
+
+        .form-table td {
+            border: 1px solid #000;
+            padding: 12px;
+            height: 40px;
+        }
+
+        .form-remark {
+            margin: 16px 0;
+            font-size: 12px;
+        }
+
+        .form-notice {
+            background-color: #f5f5f5;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 12px;
+            border: 1px solid #ddd;
+        }
+
+        .form-sign-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+
+        .form-sign-table td {
+            border: 1px solid #000;
+            padding: 16px;
+            height: 60px;
+            vertical-align: top;
+        }
+
+        .form-close-btn {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-container">
+            <!-- 侧边栏 - 只显示有子菜单的项 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>服务商系统</h2>
+                </div>
+                <div class="menu-group">
+                    <div class="menu-item active">
+                        <span>交易管理</span>
+                        <span class="arrow">›</span>
+                    </div>
+                    <div class="submenu">
+                        <div class="submenu-item">费用支付记录</div>
+                        <div class="submenu-item">结算</div>
+                        <div class="submenu-item">重发管理</div>
+                        <div class="submenu-item">退款审核</div>
+                        <div class="submenu-item active">商户余额退款</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="main-content">
+                <!-- 顶部标签栏 -->
+                <div class="tab-bar">
+                    <div class="tab-item">
+                        <span>我的主页</span>
+                    </div>
+                    <div class="tab-item active">
+                        <span>商户余额退款</span>
+                        <span class="tab-close">×</span>
+                    </div>
+                </div>
+
+                <!-- 内容区域 -->
+                <div class="content-wrapper">
+                    <!-- 查询条件 -->
+                    <div class="query-panel">
+                        <div class="query-panel-header">查询条件</div>
+                        <div class="query-form">
+                            <div class="form-item">
+                                <label>客户名称</label>
+                                <input type="text" placeholder="请输入客户名称" v-model="queryForm.customerName">
+                            </div>
+                            <div class="form-item">
+                                <label>退款发起时间</label>
+                                <input type="date" v-model="queryForm.refundStartTime">
+                            </div>
+                            <div class="form-item">
+                                <label>退款类型</label>
+                                <select v-model="queryForm.refundType">
+                                    <option value="">退款类型</option>
+                                    <option value="1">商户余额退款</option>
+                                    <option value="2">其他退款</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label>退款状态</label>
+                                <select v-model="queryForm.refundStatus">
+                                    <option value="">退款状态</option>
+                                    <option value="1">成功</option>
+                                    <option value="2">待销售审核</option>
+                                    <option value="3">处理中</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label>编码</label>
+                                <select v-model="queryForm.code">
+                                    <option value="">请选择</option>
+                                    <option value="S">S</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <button class="btn btn-primary" @click="handleSearch">
+                                    <span>🔍</span> 搜索
+                                </button>
+                                <button class="btn btn-default" @click="handleReset">
+                                    <span>↻</span> 重置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮区域 -->
+                    <div class="action-bar">
+                        <button class="btn btn-primary" @click="handleBatchExport" :disabled="selectedRows.length === 0">
+                            📥 批量导出付款表
+                        </button>
+                        <span style="color: #666;" v-if="selectedRows.length > 0">
+                            已选择 {{ selectedRows.length }} 条记录
+                        </span>
+                    </div>
+
+                    <!-- 数据表格 -->
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" class="checkbox" @change="handleSelectAll" :checked="isAllSelected">
+                                    </th>
+                                    <th style="width: 50px;">序号</th>
+                                    <th>退款金额</th>
+                                    <th>实际到账金额</th>
+                                    <th>退款账户</th>
+                                    <th>退款类型</th>
+                                    <th>退款状态</th>
+                                    <th>退款申请时间</th>
+                                    <th style="width: 180px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(item, index) in tableData" :key="item.id">
+                                    <td>
+                                        <input type="checkbox" class="checkbox" :value="item.id" v-model="selectedRows">
+                                    </td>
+                                    <td>{{ index + 1 }}</td>
+                                    <td>{{ item.refundAmount }}</td>
+                                    <td>{{ item.actualAmount }}</td>
+                                    <td>{{ item.refundAccount }}</td>
+                                    <td>{{ item.refundType }}</td>
+                                    <td>
+                                        <span class="status-tag" :class="getStatusClass(item.refundStatus)">
+                                            {{ item.refundStatus }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.refundTime }}</td>
+                                    <td>
+                                        <div class="row-actions">
+                                            <span class="action-link" @click="handleViewDetail(item)">查看详情</span>
+                                            <span class="action-link export" @click="handleSingleExport(item)">导出付款表</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 分页 -->
+                        <div class="pagination">
+                            <span class="pagination-info">共 {{ total }} 条</span>
+                            <button class="page-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
+                            <button class="page-btn" :class="{ active: currentPage === 1 }" @click="currentPage = 1">1</button>
+                            <button class="page-btn" :class="{ active: currentPage === 2 }" @click="currentPage = 2">2</button>
+                            <button class="page-btn" :class="{ active: currentPage === 3 }" @click="currentPage = 3">3</button>
+                            <button class="page-btn" :class="{ active: currentPage === 4 }" @click="currentPage = 4">4</button>
+                            <button class="page-btn" :disabled="currentPage === 4" @click="currentPage++">›</button>
+                            <span style="margin-left: 16px; color: #666;">每页</span>
+                            <select style="height: 32px; padding: 0 8px; border: 1px solid #d9d9d9; border-radius: 4px;">
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                            <span style="color: #666;">条</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Toast提示 -->
+        <div class="toast" :class="toast.type === 'success' ? 'toast-success' : 'toast-error'" v-if="toast.show">
+            {{ toast.message }}
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                // 查询表单
+                const queryForm = reactive({
+                    customerName: '',
+                    refundStartTime: '',
+                    refundType: '',
+                    refundStatus: '',
+                    code: ''
+                });
+
+                // 表格数据
+                const tableData = ref([
+                    {
+                        id: 1,
+                        refundAmount: '1000',
+                        actualAmount: '1111.11',
+                        refundAccount: '110964530910000',
+                        refundType: '商户余额退款',
+                        refundStatus: '成功',
+                        refundTime: '2026-07-23 18:52:02',
+                        refundAccountName: '北京宇申科技有限公司',
+                        bankName: '中国建设银行北京青年路支行',
+                        channelName: '招商0000'
+                    },
+                    {
+                        id: 2,
+                        refundAmount: '1000',
+                        actualAmount: '1000',
+                        refundAccount: '32050159733800000874',
+                        refundType: '商户余额退款',
+                        refundStatus: '待销售审核',
+                        refundTime: '2026-04-29 15:53:39',
+                        refundAccountName: '天津腾石信息技术有限公司',
+                        bankName: '中国工商银行天津分行',
+                        channelName: '招商0000'
+                    },
+                    {
+                        id: 3,
+                        refundAmount: '100000',
+                        actualAmount: '100000',
+                        refundAccount: '32050159733800000874',
+                        refundType: '商户余额退款',
+                        refundStatus: '待销售审核',
+                        refundTime: '2026-04-29 15:52:55',
+                        refundAccountName: '天津腾石信息技术有限公司',
+                        bankName: '中国工商银行天津分行',
+                        channelName: '招商0000'
+                    },
+                    {
+                        id: 4,
+                        refundAmount: '80851.75',
+                        actualAmount: '87319.89',
+                        refundAccount: '111111',
+                        refundType: '商户余额退款',
+                        refundStatus: '成功',
+                        refundTime: '2025-12-10 14:49:21',
+                        refundAccountName: '北京示例科技有限公司',
+                        bankName: '中国银行北京支行',
+                        channelName: '招商0000'
+                    },
+                    {
+                        id: 5,
+                        refundAmount: '87764.8',
+                        actualAmount: '88642.45',
+                        refundAccount: '111111',
+                        refundType: '商户余额退款',
+                        refundStatus: '成功',
+                        refundTime: '2025-12-09 18:47:16',
+                        refundAccountName: '北京测试有限公司',
+                        bankName: '招商银行北京支行',
+                        channelName: '招商0000'
+                    },
+                    {
+                        id: 6,
+                        refundAmount: '800',
+                        actualAmount: '808',
+                        refundAccount: '111111',
+                        refundType: '商户余额退款',
+                        refundStatus: '成功',
+                        refundTime: '2025-12-09 15:01:50',
+                        refundAccountName: '天津示例公司',
+                        bankName: '中国建设银行天津支行',
+                        channelName: '招商0000'
+                    }
+                ]);
+
+                const total = ref(100);
+                const currentPage = ref(1);
+                const selectedRows = ref([]);
+                const showConfirmModal = ref(false);
+                const exportType = ref('single');
+                const currentExportItem = ref(null);
+                const exportDataList = ref([]);
+
+                // Toast提示
+                const toast = reactive({
+                    show: false,
+                    message: '',
+                    type: 'success'
+                });
+
+                // 计算属性：是否全选
+                const isAllSelected = computed(() => {
+                    return tableData.value.length > 0 && selectedRows.value.length === tableData.value.length;
+                });
+
+                // 获取状态样式类
+                const getStatusClass = (status) => {
+                    const classMap = {
+                        '成功': 'status-success',
+                        '待销售审核': 'status-pending'
+                    };
+                    return classMap[status] || '';
+                };
+
+                // 显示Toast
+                const showToast = (message, type = 'success') => {
+                    toast.message = message;
+                    toast.type = type;
+                    toast.show = true;
+                    setTimeout(() => {
+                        toast.show = false;
+                    }, 3000);
+                };
+
+                // 搜索
+                const handleSearch = () => {
+                    showToast('搜索成功');
+                };
+
+                // 重置
+                const handleReset = () => {
+                    Object.keys(queryForm).forEach(key => {
+                        queryForm[key] = '';
+                    });
+                    showToast('已重置查询条件');
+                };
+
+                // 全选
+                const handleSelectAll = (e) => {
+                    if (e.target.checked) {
+                        selectedRows.value = tableData.value.map(item => item.id);
+                    } else {
+                        selectedRows.value = [];
+                    }
+                };
+
+                // 查看详情
+                const handleViewDetail = (item) => {
+                    alert(`查看详情：${item.refundAccount}`);
+                };
+
+                // 单笔导出 - 直接下载
+                const handleSingleExport = (item) => {
+                    generatePaymentForm(item);
+                    showToast('导出成功');
+                };
+
+                // 批量导出 - 直接下载
+                const handleBatchExport = () => {
+                    if (selectedRows.value.length === 0) {
+                        showToast('请先选择要导出的记录', 'error');
+                        return;
+                    }
+                    if (selectedRows.value.length > 50) {
+                        showToast('单次最多导出50条记录', 'error');
+                        return;
+                    }
+                    const exportData = tableData.value.filter(item => selectedRows.value.includes(item.id));
+                    exportData.forEach(item => {
+                        generatePaymentForm(item);
+                    });
+                    showToast(`成功导出 ${exportData.length} 份付款申请单`);
+                };
+
+                // 生成付款申请单
+                const generatePaymentForm = (item) => {
+                    // 金额大写转换
+                    const amountInChinese = convertToChinese(parseFloat(item.actualAmount));
+                    
+                    // 获取当前日期
+                    const now = new Date();
+                    const dateStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+
+                    // 构建Excel数据 - 严格按照照片模板
+                    const data = [
+                        // 第一行：公司名称（合并单元格）
+                        ['天津腾石信息技术有限公司', '', ''],
+                        // 第二行：付款申请单（合并单元格）
+                        ['付款申请单', '', ''],
+                        // 空行
+                        ['', '', ''],
+                        // 申请人信息行
+                        ['申请人：', '温丽', ''],
+                        ['申请部门：', '天津服务商', '申请日期：' + dateStr],
+                        // 归属部门信息行
+                        ['归属业务线/部门：', '天津服务商', '归属部门负责人：', '陈羽'],
+                        // 空行
+                        ['', '', ''],
+                        // 收款信息表格
+                        ['收款人（账户名）：', item.refundAccountName, '收款账号：', item.refundAccount],
+                        ['开户银行：', item.bankName, '', ''],
+                        ['付款说明：', `1.0余额退款 ${item.channelName}`, '', ''],
+                        ['合同名称：', '', '', ''],
+                        ['金额小写：', 'RMB ' + parseFloat(item.actualAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2 }), '', ''],
+                        ['金额大写：', 'RMB ' + amountInChinese, '', ''],
+                        // 空行
+                        ['', '', ''],
+                        // 附注
+                        ['附注：', '计划内支出 □', '', '计划外支出 □'],
+                        // 空行
+                        ['', '', ''],
+                        // 注意事项
+                        ['本单签批项前各栏次必须录入填写完整打印后不得涂改，否则财务部将拒绝受理。', '', ''],
+                        // 空行
+                        ['', '', ''],
+                        // 签字区域
+                        ['申请人签字：', '', '部门负责人/分管VP/费用归属部门负责人：', ''],
+                        ['', '', '', ''],
+                        ['会计/结算复核签字：', '', '财务部总经理及分管VP：', ''],
+                        ['', '', '', ''],
+                        ['风险、法务（合同类）：', '', '总裁/常务副总裁：', ''],
+                        ['', '', '', ''],
+                        ['CEO：', '', '出纳付款签字：', '']
+                    ];
+
+                    // 创建工作簿
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, '付款申请单');
+
+                    // 设置列宽
+                    ws['!cols'] = [
+                        { wch: 25 },
+                        { wch: 30 },
+                        { wch: 25 },
+                        { wch: 30 }
+                    ];
+
+                    // 合并单元格
+                    ws['!merges'] = [
+                        { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },  // 公司名称
+                        { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },  // 付款申请单标题
+                        { s: { r: 5, c: 1 }, e: { r: 5, c: 2 } },  // 归属业务线/部门值
+                    ];
+
+                    // 生成文件名：收款人（账户名）_金额小写.xlsx
+                    const fileName = `${item.refundAccountName}_${item.actualAmount}.xlsx`;
+
+                    // 下载文件
+                    XLSX.writeFile(wb, fileName);
+                };
+
+                // 数字转中文大写
+                const convertToChinese = (num) => {
+                    const digit = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+                    const units = ['', '拾', '佰', '仟'];
+                    const bigUnits = ['', '万', '亿', '兆'];
+
+                    if (num === 0) return '零元整';
+
+                    let result = '';
+                    const intPart = Math.floor(num);
+                    const decPart = Math.round((num - intPart) * 100);
+
+                    // 处理整数部分
+                    if (intPart > 0) {
+                        const intStr = intPart.toString();
+                        const groups = [];
+                        for (let i = intStr.length; i > 0; i -= 4) {
+                            groups.unshift(intStr.slice(Math.max(0, i - 4), i));
+                        }
+
+                        groups.forEach((group, groupIndex) => {
+                            let groupStr = '';
+                            const bigUnit = bigUnits[groups.length - 1 - groupIndex];
+                            
+                            for (let i = 0; i < group.length; i++) {
+                                const d = parseInt(group[i]);
+                                const unit = units[group.length - 1 - i];
+                                
+                                if (d !== 0) {
+                                    groupStr += digit[d] + unit;
+                                } else if (groupStr && !groupStr.endsWith('零')) {
+                                    groupStr += '零';
+                                }
+                            }
+                            
+                            groupStr = groupStr.replace(/零+$/, '');
+                            if (groupStr) {
+                                result += groupStr + bigUnit;
+                            }
+                        });
+
+                        result += '元';
+                    }
+
+                    // 处理小数部分
+                    if (decPart > 0) {
+                        const jiao = Math.floor(decPart / 10);
+                        const fen = decPart % 10;
+                        
+                        if (jiao > 0) {
+                            result += digit[jiao] + '角';
+                        }
+                        if (fen > 0) {
+                            result += digit[fen] + '分';
+                        }
+                    } else {
+                        result += '整';
+                    }
+
+                    return result;
+                };
+
+                return {
+                    queryForm,
+                    tableData,
+                    total,
+                    currentPage,
+                    selectedRows,
+                    showConfirmModal,
+                    exportType,
+                    toast,
+                    isAllSelected,
+                    getStatusClass,
+                    handleSearch,
+                    handleReset,
+                    handleSelectAll,
+                    handleViewDetail,
+                    handleSingleExport,
+                    handleBatchExport
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>
