@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原型-服务商签约列表批量下载个人协议</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
+  body { background:#F5F7FA; color:#333333; font-size:14px; }
+  .layout { display:flex; min-height:100vh; }
+  /* 侧边栏 */
+  .sidebar { width:230px; background:#FFFFFF; border-right:1px solid #E8E8E8; flex-shrink:0; overflow-y:auto; }
+  .side-group { padding:10px 12px; font-weight:600; font-size:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .side-group .arrow { color:#999; font-size:12px; }
+  .side-sub { display:none; }
+  .side-group.open + .side-sub { display:block; }
+  .side-item { padding:9px 12px 9px 34px; font-size:13px; color:#333; cursor:pointer; position:relative; display:flex; align-items:center; gap:8px; }
+  .side-item:hover { color:#1890FF; }
+  .side-item .dot { width:6px; height:6px; border-radius:50%; background:#C4C4C4; flex-shrink:0; }
+  .side-item.active { background:#E6F4FF; color:#1890FF; font-weight:600; }
+  .side-item.active::before { content:""; position:absolute; left:12px; top:8px; bottom:8px; width:3px; background:#1890FF; border-radius:2px; }
+  /* 主区域 */
+  .main { flex:1; min-width:0; }
+  .topbar { background:#FFFFFF; padding:0 16px; display:flex; align-items:flex-end; gap:4px; border-bottom:1px solid #E8E8E8; }
+  .topbar .tab { padding:12px 18px; font-size:14px; cursor:pointer; color:#333; display:flex; align-items:center; gap:8px; }
+  .topbar .tab.active { color:#1890FF; border-bottom:2px solid #1890FF; font-weight:600; }
+  .topbar .tab .x { color:#999; font-size:12px; }
+  .topbar .more { margin-left:auto; padding:12px; color:#666; cursor:pointer; }
+  .content { padding:16px; }
+  .card { background:#FFFFFF; border-radius:6px; padding:20px; margin-bottom:16px; }
+  /* 查询区 */
+  .query-row { display:flex; flex-wrap:wrap; gap:16px 32px; align-items:center; }
+  .q-item { display:flex; align-items:center; gap:8px; }
+  .q-item label { color:#333; white-space:nowrap; }
+  input[type=text], input[type=date], select { height:36px; border:1px solid #D9D9D9; border-radius:4px; padding:0 10px; font-size:14px; outline:none; min-width:180px; }
+  input:focus { border-color:#1890FF; }
+  .btn { height:32px; padding:0 16px; border-radius:4px; border:1px solid transparent; cursor:pointer; font-size:14px; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; }
+  .btn-primary { background:#1890FF; color:#FFFFFF; }
+  .btn-primary:hover { background:#40A9FF; }
+  .btn-outline { border-color:#1890FF; color:#1890FF; background:#FFFFFF; }
+  .btn-outline:hover { background:#E6F4FF; }
+  .btn-danger { background:#FF4D4F; color:#FFF; }
+  .btn-text { border:none; color:#1890FF; background:transparent; padding:0 6px; height:auto; cursor:pointer; font-size:14px; display:inline-flex; align-items:center; gap:4px; }
+  .btn-text.danger { color:#FF4D4F; }
+  .btn-text:disabled { color:#BBB; cursor:not-allowed; }
+  .expand-link { color:#1890FF; cursor:pointer; font-size:14px; }
+  /* 操作区 */
+  .action-bar { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+  .divider { color:#D9D9D9; }
+  /* 表格 */
+  table { width:100%; border-collapse:collapse; }
+  th { background:#FAFAFA; font-weight:600; text-align:left; padding:12px 12px; border-bottom:1px solid #E8E8E8; white-space:nowrap; }
+  td { padding:12px; border-bottom:1px solid #F0F0F0; white-space:nowrap; }
+  tr:hover td { background:#FAFAFA; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:4px; font-size:12px; }
+  .tag-green { background:#F6FFED; color:#52C41A; border:1px solid #B7EB8F; }
+  .tag-red { background:#FFF1F0; color:#FF4D4F; border:1px solid #FFA39E; }
+  .tag-blue { background:#E6F4FF; color:#1890FF; border:1px solid #91CAFF; }
+  .progress-wrap { display:flex; align-items:center; gap:8px; min-width:160px; }
+  .progress-bar { flex:1; height:8px; background:#F0F0F0; border-radius:4px; overflow:hidden; }
+  .progress-inner { height:100%; background:#1890FF; border-radius:4px; width:0; transition:width .5s; }
+  /* 弹窗 */
+  .mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100; align-items:flex-start; justify-content:center; padding-top:80px; }
+  .mask.show { display:flex; }
+  .modal { background:#FFF; border-radius:6px; width:640px; max-width:92vw; padding:24px; }
+  .modal h3 { font-size:16px; font-weight:600; margin-bottom:18px; }
+  .modal .close { float:right; cursor:pointer; color:#999; font-size:16px; border:none; background:none; }
+  .mode-btns { display:flex; gap:12px; margin-bottom:16px; }
+  .mode-btn { flex:1; height:56px; border:1px solid #D9D9D9; border-radius:6px; background:#FFF; cursor:pointer; font-size:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .mode-btn small { color:#999; font-size:12px; }
+  .mode-btn.active { border-color:#1890FF; background:#E6F4FF; color:#1890FF; font-weight:600; }
+  .upload-box { border:1px dashed #D9D9D9; border-radius:6px; padding:24px; text-align:center; color:#666; cursor:pointer; }
+  .upload-box:hover { border-color:#1890FF; color:#1890FF; }
+  .upload-box .fname { color:#52C41A; font-weight:600; }
+  .field-table { width:100%; margin:12px 0; display:none; }
+  .field-table td, .field-table th { padding:8px 10px; font-size:13px; }
+  .modal-footer { text-align:right; margin-top:18px; display:flex; justify-content:flex-end; gap:12px; }
+  .tip-line { background:#E6F4FF; border:1px solid #91CAFF; color:#1890FF; border-radius:4px; padding:8px 12px; margin-bottom:12px; font-size:13px; }
+  /* Toast */
+  #toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:#52C41A; color:#FFF; padding:10px 24px; border-radius:6px; display:none; z-index:300; font-size:14px; }
+  /* 错误弹窗 */
+  .err-modal { width:420px; }
+  .err-head { background:#FF4D4F; color:#FFF; padding:10px 16px; border-radius:6px 6px 0 0; font-weight:600; margin:-24px -24px 16px; }
+  .err-body { color:#333; line-height:1.7; }
+  .pagination { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:16px; color:#666; font-size:13px; }
+  .page-btn { min-width:28px; height:28px; border:1px solid #D9D9D9; border-radius:4px; background:#FFF; cursor:pointer; }
+  .page-btn.cur { background:#1890FF; color:#FFF; border-color:#1890FF; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="side-group open">自由职业者 <span class="arrow">⌄</span></div>
+    <div class="side-sub">
+      <div class="side-item active" onclick="switchPage('sign',this)"><span class="dot"></span>签约记录</div>
+    </div>
+    <div class="side-group open">数据管理 <span class="arrow">⌄</span></div>
+    <div class="side-sub">
+      <div class="side-item" id="sideExport" onclick="switchPage('export',this)"><span class="dot"></span>异步导出记录</div>
+    </div>
+  </aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <div class="topbar">
+      <div class="tab">首页</div>
+      <div class="tab active" id="tabSign">签约记录 <span class="x">✕</span></div>
+      <div class="tab" id="tabExport" style="display:none">异步导出记录 <span class="x">✕</span></div>
+      <div class="more">⋯</div>
+    </div>
+    <div class="content">
+
+      <!-- 签约记录页 -->
+      <div id="pageSign">
+        <div class="card">
+          <div class="query-row">
+            <div class="q-item"><label>创建日期</label><input type="date" value="2026-11-11"> ~ <input type="date" value="2026-11-11"></div>
+            <div class="q-item"><label>姓名</label><input type="text" placeholder="姓名"></div>
+            <div class="q-item"><label>身份证</label><input type="text" placeholder="身份证"></div>
+          </div>
+          <div class="query-row" style="margin-top:14px">
+            <div class="q-item"><label>是否签约</label>
+              <select><option>全部</option><option>已签约</option><option>未签约</option></select>
+            </div>
+            <span class="expand-link">展开 ⌄</span>
+            <div style="margin-left:auto; display:flex; gap:12px">
+              <button class="btn btn-primary">🔍 查询</button>
+              <button class="btn btn-outline">↻ 重置</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-outline">⬇ 下载脱敏Excel</button>
+          <button class="btn btn-outline">⬇ 下载非脱敏Excel</button>
+          <button class="btn btn-outline">⬇ 下载导入模板</button>
+          <button class="btn btn-outline" onclick="openBatchModal()">🗂 批量下载个人协议</button>
+          <span class="divider">|</span>
+          <button class="btn btn-primary">＋ 新增</button>
+          <button class="btn btn-outline">⇪ 批量新增</button>
+        </div>
+
+        <div class="card" style="padding:0">
+          <table>
+            <thead><tr>
+              <th>卡号</th><th>手机号</th><th>协议</th><th>状态</th><th>签约状态</th><th>备注</th><th>证件图片</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>622***********073</td><td>189*****440</td>
+                <td><span class="btn-text">👁 查看协议</span> <span class="btn-text">⬇ 下载协议</span></td>
+                <td><span class="tag tag-green">正常</span></td><td><span class="tag tag-green">已签约</span></td>
+                <td>-</td><td><span class="btn-text">👁 查看</span></td>
+                <td><span class="btn-text">📄 详情</span> <span class="btn-text">✎ 修改</span></td>
+              </tr>
+              <tr>
+                <td>622***********073</td><td>198*****060</td>
+                <td><span class="btn-text">👁 查看协议</span> <span class="btn-text">⬇ 下载协议</span></td>
+                <td><span class="tag tag-green">正常</span></td><td><span class="tag tag-green">已签约</span></td>
+                <td>-</td><td><span class="btn-text">👁 查看</span></td>
+                <td><span class="btn-text">📄 详情</span> <span class="btn-text">✎ 修改</span></td>
+              </tr>
+              <tr>
+                <td>621**********745</td><td>136*****013</td>
+                <td><span class="btn-text">👁 查看协议</span> <span class="btn-text">⬇ 下载协议</span></td>
+                <td><span class="tag tag-green">正常</span></td><td><span class="tag tag-green">已签约</span></td>
+                <td>-</td><td><span class="btn-text">👁 查看</span></td>
+                <td><span class="btn-text">📄 详情</span> <span class="btn-text">✎ 修改</span></td>
+              </tr>
+              <tr>
+                <td>621**********947</td><td>199*****321</td>
+                <td><span class="btn-text">👁 查看协议</span> <span class="btn-text">⬇ 下载协议</span></td>
+                <td><span class="tag tag-green">正常</span></td><td><span class="tag tag-green">已签约</span></td>
+                <td>-</td><td>-</td>
+                <td><span class="btn-text">📄 详情</span> <span class="btn-text">✎ 修改</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 异步导出记录页 -->
+      <div id="pageExport" style="display:none">
+        <div class="card">
+          <div class="query-row">
+            <div class="q-item"><label>创建时间</label><input type="date"> ~ <input type="date"></div>
+            <div style="margin-left:auto; display:flex; gap:12px">
+              <button class="btn btn-primary">🔍 查询</button>
+              <button class="btn btn-outline">↻ 重置</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="padding:0">
+          <table>
+            <thead><tr>
+              <th>创建时间</th><th>导出类型</th><th>文件名</th><th>状态</th><th>进度</th><th>进度说明</th><th>操作人</th><th>操作</th>
+            </tr></thead>
+            <tbody id="exportBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 批量下载个人协议弹窗 -->
+<div class="mask" id="batchMask">
+  <div class="modal">
+    <button class="close" onclick="closeBatchModal()">✕</button>
+    <h3>批量下载协议</h3>
+    <div class="tip-line">请选择查询方式：上传客户列表按客户导出其名下全部个人协议；上传个人列表按个人精确导出协议。单次上传上限 1000 条。</div>
+    <div class="mode-btns">
+      <button class="mode-btn" id="modeCust" onclick="chooseMode('cust')">【客户列表查询】<small>客户ID、客户名称</small></button>
+      <button class="mode-btn" id="modePerson" onclick="chooseMode('person')">【个人列表查询】<small>客户ID、客户名称、个人姓名、身份证号</small></button>
+    </div>
+    <div id="uploadArea" style="display:none">
+      <span class="btn-text" onclick="toast('导入模板已下载')">⬇ 下载导入模板</span>
+      <div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+        <span id="uploadText">点击或拖拽上传Excel文件（仅支持 .xlsx）</span>
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="onFileChoosed(this)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBatchModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitTask()">确认提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重试二次确认弹窗 -->
+<div class="mask" id="retryMask">
+  <div class="modal" style="width:420px">
+    <h3>二次确认</h3>
+    <div style="line-height:1.8">确定要重试该导出任务吗？重试将生成一条新任务记录，原任务保留留痕。</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="hide('retryMask')">取消</button>
+      <button class="btn btn-primary" onclick="doRetry()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 错误提示弹窗（红底白字） -->
+<div class="mask" id="errMask">
+  <div class="modal err-modal">
+    <div class="err-head">⚠ 操作失败</div>
+    <div class="err-body" id="errMsg"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="hide('errMask')">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var tasks = [
+  { time:'2026-11-11 10:30:03', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111103003.zip', status:'fail', progress:0, desc:'成功0条，失败8条', user:'闫保华', failData:true },
+  { time:'2026-11-11 10:29:56', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111102956.zip', status:'success', progress:100, desc:'成功120条，失败3条', user:'闫保华', failData:true },
+  { time:'2026-11-11 10:20:01', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111102001.zip', status:'success', progress:100, desc:'成功66条，失败0条', user:'闫保华', failData:false },
+  { time:'2026-11-11 09:15:44', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111091544.zip', status:'running', progress:45, desc:'处理中', user:'闫保华', failData:false }
+];
+
+var curMode = '';
+var retryTarget = null;
+
+function show(id){ document.getElementById(id).classList.add('show'); }
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(function(){ t.style.display='none'; }, 3000);
+}
+function showError(msg){
+  document.getElementById('errMsg').textContent = msg;
+  show('errMask');
+}
+
+function switchPage(page, el){
+  document.querySelectorAll('.side-item').forEach(function(i){ i.classList.remove('active'); });
+  el.classList.add('active');
+  var sign = page==='sign';
+  document.getElementById('pageSign').style.display = sign?'block':'none';
+  document.getElementById('pageExport').style.display = sign?'none':'block';
+  document.getElementById('tabSign').style.display = sign?'flex':'none';
+  document.getElementById('tabExport').style.display = sign?'none':'flex';
+  document.getElementById('tabSign').classList.toggle('active', sign);
+  document.getElementById('tabExport').classList.toggle('active', !sign);
+  renderTasks();
+}
+
+function openBatchModal(){
+  curMode='';
+  document.getElementById('modeCust').classList.remove('active');
+  document.getElementById('modePerson').classList.remove('active');
+  document.getElementById('uploadArea').style.display='none';
+  document.getElementById('uploadText').innerHTML='点击或拖拽上传Excel文件（仅支持 .xlsx）';
+  document.getElementById('fileInput').value='';
+  show('batchMask');
+}
+function closeBatchModal(){ hide('batchMask'); }
+
+function chooseMode(mode){
+  curMode = mode;
+  document.getElementById('modeCust').classList.toggle('active', mode==='cust');
+  document.getElementById('modePerson').classList.toggle('active', mode==='person');
+  document.getElementById('uploadArea').style.display='block';
+}
+
+function onFileChoosed(input){
+  var f = input.files[0];
+  if(!f) return;
+  if(!/\.xlsx$/.test(f.name)){
+    showError('文件格式错误：仅支持 .xlsx 格式，请使用"下载导入模板"提供的模板文件填写后上传。');
+    input.value=''; return;
+  }
+  document.getElementById('uploadText').innerHTML = '已选择文件：<span class="fname">'+f.name+'</span>（点击可重新选择）';
+}
+
+function nowStr(){
+  var d = new Date(), p=function(n){return (n<10?'0':'')+n;};
+  function f(d){ return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds()); }
+  return f(d);
+}
+function nowFmt(){
+  var d = new Date(), p=function(n){return (n<10?'0':'')+n;};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+function submitTask(){
+  if(!curMode){ showError('请先选择查询方式：【客户列表查询】或【个人列表查询】'); return; }
+  var hasFile = document.getElementById('fileInput').value !== '';
+  if(!hasFile){ showError('请先上传按模板填写的Excel文件（.xlsx），未上传文件无法发起批量下载。'); return; }
+  var modeTxt = curMode==='cust' ? '客户列表' : '个人列表';
+  tasks.unshift({ time:nowFmt(), type:'签约记录-批量下载个人协议（'+modeTxt+'）', file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中', user:'闫保华', failData:false });
+  closeBatchModal();
+  toast('已提交，可在异步导出记录中查看进度');
+  switchPage('export', document.getElementById('sideExport'));
+}
+
+var tagMap = {
+  running:'<span class="tag tag-blue">处理中</span>',
+  success:'<span class="tag tag-green">处理成功</span>',
+  fail:'<span class="tag tag-red">处理失败</span>'
+};
+
+function renderTasks(){
+  var body = document.getElementById('exportBody');
+  body.innerHTML = tasks.map(function(t,i){
+    var ops = '';
+    if(t.status==='running'){ ops = '<span class="btn-text" disabled style="color:#BBB">下载</span>'; }
+    if(t.status==='success'){ ops = '<span class="btn-text" onclick="toast(\'开始下载 '+t.file+'\')">⬇ 下载</span>'; }
+    if(t.status==='fail'){ ops = '<span class="btn-text" onclick="toast(\'开始下载 '+t.file+'\')">⬇ 下载</span> <span class="btn-text" onclick="askRetry('+i+')">↻ 重试</span>'; }
+    if(t.failData){ ops += ' <span class="btn-text danger" onclick="toast(\'开始下载 失败数据_'+t.file.replace('批量协议_','').replace('.zip','')+'.xlsx\')">⬇ 下载失败数据</span>'; }
+    return '<tr>'+
+      '<td>'+t.time+'</td><td>'+t.type+'</td><td>'+t.file+'</td>'+
+      '<td>'+tagMap[t.status]+'</td>'+
+      '<td><div class="progress-wrap"><div class="progress-bar"><div class="progress-inner" style="width:'+t.progress+'%"></div></div>'+t.progress+'%</div></td>'+
+      '<td>'+t.desc+'</td><td>'+t.user+'</td><td>'+ops+'</td></tr>';
+  }).join('');
+}
+
+function askRetry(i){ retryTarget = i; show('retryMask'); }
+function doRetry(){
+  var t = tasks[retryTarget];
+  tasks.unshift({ time:nowFmt(), type:t.type, file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中（重试任务）', user:t.user, failData:false });
+  hide('retryMask');
+  toast('重试已提交，原任务保留留痕');
+  renderTasks();
+}
+
+/* 模拟异步任务进度推进 */
+setInterval(function(){
+  tasks.forEach(function(t){
+    if(t.status==='running'){
+      t.progress = Math.min(100, t.progress + Math.floor(Math.random()*15)+5);
+      t.desc = '处理中';
+      if(t.progress>=100){
+        t.status='success';
+        t.desc='成功118条，失败2条';
+        t.failData=true;
+      }
+    }
+  });
+  if(document.getElementById('pageExport').style.display!=='none') renderTasks();
+}, 2000);
+
+renderTasks();
+</script>
+</body>
+</html>
