@@ -210,7 +210,7 @@
   <div class="modal">
     <button class="close" onclick="closeBatchModal()">✕</button>
     <h3>批量下载协议</h3>
-    <div class="tip-line">请选择查询方式：上传客户列表按客户导出其名下全部个人协议；上传个人列表按个人精确导出协议。单次上传上限 1000 条。</div>
+    <div class="tip-line">请选择查询方式：上传客户列表按客户导出其名下全部个人协议；上传个人列表按个人精确导出协议。单次上传上限 1000 条。上传文件后系统自动校验，校验失败数据可下载修正后重新上传。</div>
     <div class="mode-btns">
       <button class="mode-btn" id="modeCust" onclick="chooseMode('cust')">【客户列表查询】<small>客户ID、客户名称</small></button>
       <button class="mode-btn" id="modePerson" onclick="chooseMode('person')">【个人列表查询】<small>客户ID、客户名称、个人姓名、身份证号</small></button>
@@ -221,6 +221,7 @@
         <span id="uploadText">点击或拖拽上传Excel文件（仅支持 .xlsx）</span>
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="onFileChoosed(this)">
       </div>
+      <div id="validateResult" style="display:none; margin-top:12px; padding:10px 12px; border-radius:4px; font-size:13px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeBatchModal()">取消</button>
@@ -256,10 +257,10 @@
 
 <script>
 var tasks = [
-  { time:'2026-11-11 10:30:03', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111103003.zip', status:'fail', progress:0, desc:'成功0条，失败8条', user:'闫保华', failData:true },
-  { time:'2026-11-11 10:29:56', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111102956.zip', status:'success', progress:100, desc:'成功120条，失败3条', user:'闫保华', failData:true },
-  { time:'2026-11-11 10:20:01', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111102001.zip', status:'success', progress:100, desc:'成功66条，失败0条', user:'闫保华', failData:false },
-  { time:'2026-11-11 09:15:44', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111091544.zip', status:'running', progress:45, desc:'处理中', user:'闫保华', failData:false }
+  { time:'2026-11-11 10:30:03', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111103003.zip', status:'fail', progress:0, desc:'成功0条，失败8条', user:'闫保华' },
+  { time:'2026-11-11 10:29:56', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111102956.zip', status:'success', progress:100, desc:'成功120条，失败3条', user:'闫保华' },
+  { time:'2026-11-11 10:20:01', type:'签约记录-批量下载个人协议（客户列表）', file:'批量协议_20261111102001.zip', status:'success', progress:100, desc:'成功66条，失败0条', user:'闫保华' },
+  { time:'2026-11-11 09:15:44', type:'签约记录-批量下载个人协议（个人列表）', file:'批量协议_20261111091544.zip', status:'running', progress:45, desc:'处理中', user:'闫保华' }
 ];
 
 var curMode = '';
@@ -296,8 +297,13 @@ function openBatchModal(){
   document.getElementById('modePerson').classList.remove('active');
   document.getElementById('uploadArea').style.display='none';
   document.getElementById('uploadText').innerHTML='点击或拖拽上传Excel文件（仅支持 .xlsx）';
+  document.getElementById('validateResult').style.display='none';
   document.getElementById('fileInput').value='';
   show('batchMask');
+  /* 演示：预置一个部分校验失败的展示（实际使用时由客户自行选择方式并上传文件） */
+  chooseMode('person');
+  document.getElementById('uploadText').innerHTML = '已选择文件：<span class="fname">个人列表_20261111.xlsx</span>（点击可重新选择）';
+  validateFile('个人列表_20261111.xlsx', 3);
 }
 function closeBatchModal(){ hide('batchMask'); }
 
@@ -316,6 +322,32 @@ function onFileChoosed(input){
     input.value=''; return;
   }
   document.getElementById('uploadText').innerHTML = '已选择文件：<span class="fname">'+f.name+'</span>（点击可重新选择）';
+  validateFile(f.name);
+}
+
+var lastValidate = null;
+
+/* 模拟上传文件校验 */
+function validateFile(fname, forcedFail){
+  var total = Math.floor(Math.random()*400)+100;
+  var fail = 0;
+  if(forcedFail !== undefined){ fail = Math.min(forcedFail, total); }
+  else if(/失败/.test(fname)) fail = total;            /* 演示：文件名含"失败"时全部失败 */
+  else if(/部分/.test(fname)) fail = Math.floor(total*0.2); /* 演示：文件名含"部分"时20%失败 */
+  var success = total - fail;
+  lastValidate = { success: success, fail: fail };
+  var box = document.getElementById('validateResult');
+  if(fail===0){
+    box.style.background='#F6FFED'; box.style.border='1px solid #B7EB8F'; box.style.color='#52C41A';
+    box.innerHTML = '校验完成：成功 <b>'+success+'</b> 条，失败 <b>0</b> 条，可点击"确认提交"发起批量下载';
+  } else if(success===0){
+    box.style.background='#FFF1F0'; box.style.border='1px solid #FFA39E'; box.style.color='#FF4D4F';
+    box.innerHTML = '校验完成：成功 <b>0</b> 条，失败 <b>'+fail+'</b> 条，请下载失败数据修正后重新上传 <span class="btn-text" onclick="toast(\'开始下载 失败数据_'+nowStr()+'.xlsx\')">⬇ 下载失败数据</span>';
+  } else {
+    box.style.background='#FFFBE6'; box.style.border='1px solid #FFE58F'; box.style.color='#FAAD14';
+    box.innerHTML = '校验完成：成功 <b>'+success+'</b> 条，失败 <b>'+fail+'</b> 条；失败数据可下载修正后重新上传 <span class="btn-text" onclick="toast(\'开始下载 失败数据_'+nowStr()+'.xlsx\')">⬇ 下载失败数据</span>';
+  }
+  box.style.display='block';
 }
 
 function nowStr(){
@@ -332,8 +364,9 @@ function submitTask(){
   if(!curMode){ showError('请先选择查询方式：【客户列表查询】或【个人列表查询】'); return; }
   var hasFile = document.getElementById('fileInput').value !== '';
   if(!hasFile){ showError('请先上传按模板填写的Excel文件（.xlsx），未上传文件无法发起批量下载。'); return; }
+  if(!lastValidate || lastValidate.success===0){ showError('上传文件校验全部失败（成功0条），请点击"下载失败数据"获取失败明细，修正后重新上传。'); return; }
   var modeTxt = curMode==='cust' ? '客户列表' : '个人列表';
-  tasks.unshift({ time:nowFmt(), type:'签约记录-批量下载个人协议（'+modeTxt+'）', file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中', user:'闫保华', failData:false });
+  tasks.unshift({ time:nowFmt(), type:'签约记录-批量下载个人协议（'+modeTxt+'）', file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中（成功'+lastValidate.success+'条，失败'+lastValidate.fail+'条）', user:'闫保华', counts:{s:lastValidate.success,f:lastValidate.fail} });
   closeBatchModal();
   toast('已提交，可在异步导出记录中查看进度');
   switchPage('export', document.getElementById('sideExport'));
@@ -352,7 +385,6 @@ function renderTasks(){
     if(t.status==='running'){ ops = '<span class="btn-text" disabled style="color:#BBB">下载</span>'; }
     if(t.status==='success'){ ops = '<span class="btn-text" onclick="toast(\'开始下载 '+t.file+'\')">⬇ 下载</span>'; }
     if(t.status==='fail'){ ops = '<span class="btn-text" onclick="toast(\'开始下载 '+t.file+'\')">⬇ 下载</span> <span class="btn-text" onclick="askRetry('+i+')">↻ 重试</span>'; }
-    if(t.failData){ ops += ' <span class="btn-text danger" onclick="toast(\'开始下载 失败数据_'+t.file.replace('批量协议_','').replace('.zip','')+'.xlsx\')">⬇ 下载失败数据</span>'; }
     return '<tr>'+
       '<td>'+t.time+'</td><td>'+t.type+'</td><td>'+t.file+'</td>'+
       '<td>'+tagMap[t.status]+'</td>'+
@@ -364,7 +396,7 @@ function renderTasks(){
 function askRetry(i){ retryTarget = i; show('retryMask'); }
 function doRetry(){
   var t = tasks[retryTarget];
-  tasks.unshift({ time:nowFmt(), type:t.type, file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中（重试任务）', user:t.user, failData:false });
+  tasks.unshift({ time:nowFmt(), type:t.type, file:'批量协议_'+nowStr()+'.zip', status:'running', progress:5, desc:'处理中（重试任务）', user:t.user });
   hide('retryMask');
   toast('重试已提交，原任务保留留痕');
   renderTasks();
@@ -378,8 +410,7 @@ setInterval(function(){
       t.desc = '处理中';
       if(t.progress>=100){
         t.status='success';
-        t.desc='成功118条，失败2条';
-        t.failData=true;
+        t.desc=(t.counts?('成功'+t.counts.s+'条，失败'+t.counts.f+'条'):'成功118条，失败2条');
       }
     }
   });
